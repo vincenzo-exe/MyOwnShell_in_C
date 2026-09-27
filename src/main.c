@@ -8,7 +8,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-// Array of builtin commands for autocompletion
+// Array for commands autocompletion
 const char *builtins[] = {"exit", "echo", "type", "pwd", "cd", NULL};
 
 static void free_string_list(char **list, size_t count) {
@@ -41,7 +41,7 @@ static void string_list_push_unique(char ***list, size_t *count, size_t *cap, co
   (*list)[(*count)++] = copy;
 }
 
-// Autocompletion function
+// Autocompletion
 char *command_generator(const char *text, int state) {
   static char **candidates = NULL;
   static size_t candidate_count = 0;
@@ -57,21 +57,18 @@ char *command_generator(const char *text, int state) {
     candidate_count = 0;
     candidate_cap = 0;
 
-    // Builtins
     for (int i = 0; builtins[i] != NULL; i++) {
       if (strncmp(builtins[i], text, len) == 0) {
         string_list_push_unique(&candidates, &candidate_count, &candidate_cap, builtins[i]);
       }
     }
 
-    // External executables in PATH
     const char *path_env = getenv("PATH");
     if (path_env != NULL && path_env[0] != '\0') {
       char *path_copy = malloc(strlen(path_env) + 1);
       if (path_copy != NULL) {
         strcpy(path_copy, path_env);
 
-        // Support both ':' (unix) and ';' (windows) just in case.
         const char *delims = strchr(path_copy, ';') ? ";:" : ":";
         char *saveptr = NULL;
         for (char *dir = strtok_r(path_copy, delims, &saveptr); dir != NULL;
@@ -80,7 +77,7 @@ char *command_generator(const char *text, int state) {
 
           DIR *dp = opendir(dir);
           if (dp == NULL) {
-            continue; // PATH can contain non-existent/unreadable dirs
+            continue; 
           }
 
           struct dirent *entry;
@@ -89,7 +86,6 @@ char *command_generator(const char *text, int state) {
             if (name[0] == '.') continue;
             if (strncmp(name, text, len) != 0) continue;
 
-            // Verify it is executable.
             char full_path[1024];
             size_t dlen = strlen(dir);
             int needs_slash = (dlen > 0 && dir[dlen - 1] != '/');
@@ -119,15 +115,12 @@ char *command_generator(const char *text, int state) {
 }
 
 char **command_completion(const char *text, int start, int end) {
-  // Only complete at the start of the line
   if (start == 0) {
     rl_completion_append_character = ' ';
-    // Prevent falling back to filename completion for commands.
     rl_attempted_completion_over = 1;
 
     char **matches = rl_completion_matches(text, command_generator);
     if (matches == NULL) {
-      // No valid completions: keep input unchanged and ring the bell.
       putchar('\x07');
       fflush(stdout);
     }
@@ -140,7 +133,6 @@ int main(int argc, char *argv[]) {
   // Flush after every printf
   setbuf(stdout, NULL);
   
-  // Set up readline autocompletion
   rl_attempted_completion_function = command_completion;
   
   while (1) {
@@ -164,7 +156,7 @@ int main(int argc, char *argv[]) {
       free(input);
       break;
     } else if (strcmp(input, "pwd") == 0) {
-      // Implement pwd builtin
+      // pwd cmd
       char cwd[1024];
       if (getcwd(cwd, sizeof(cwd)) != NULL) {
         printf("%s\n", cwd);
@@ -172,7 +164,7 @@ int main(int argc, char *argv[]) {
         perror("getcwd failed");
       }
     } else if (strncmp(input, "cd ", 3) == 0) {
-      // Implement cd builtin
+      // cd cmd
       char *directory = input + 3;
       // Remove trailing whitespace if present
       int len = strlen(directory);
@@ -181,7 +173,6 @@ int main(int argc, char *argv[]) {
         len--;
       }
       
-      // Handle ~ expansion
       char expanded_path[1024];
       if (directory[0] == '~') {
         const char *home = getenv("HOME");
@@ -234,7 +225,6 @@ int main(int argc, char *argv[]) {
           char full_path[512];
           snprintf(full_path, sizeof(full_path), "%s/%s", directory, arg);
           
-          // Check if file exists and has execute permissions
           if (access(full_path, X_OK) == 0) {
             printf("%s is %s\n", arg, full_path);
             found = 1;
@@ -250,7 +240,6 @@ int main(int argc, char *argv[]) {
         }
       }
     } else {
-      // Handle external program execution
       char input_copy[100];
       strcpy(input_copy, input);
       
